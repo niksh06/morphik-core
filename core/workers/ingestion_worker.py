@@ -28,6 +28,7 @@ from core.storage.local_storage import LocalStorage
 from core.storage.s3_storage import S3Storage
 from core.vector_store.multi_vector_store import MultiVectorStore
 from core.vector_store.pgvector_store import PGVectorStore
+from core.vector_store.qdrant_store import QdrantStore
 
 # Enterprise routing helpers
 from ee.db_router import get_database_for_app, get_vector_store_for_app
@@ -737,11 +738,23 @@ async def startup(ctx):
         logger.error("Database initialization failed")
     ctx["database"] = database
 
-    # Initialize vector store
+    # Initialize vector store based on configuration
     logger.info("Initializing primary vector store...")
-    vector_store = PGVectorStore(uri=settings.POSTGRES_URI)
-    # vector_store = PGVectorStore(uri="postgresql+asyncpg://morphik:morphik@postgres:5432/morphik")
-    success = await vector_store.initialize()
+    match settings.VECTOR_STORE_PROVIDER:
+        case "pgvector":
+            vector_store = PGVectorStore(uri=settings.POSTGRES_URI)
+            success = await vector_store.initialize()
+        case "qdrant":
+            vector_store = QdrantStore(
+                host=settings.QDRANT_HOST,
+                port=settings.QDRANT_PORT,
+                collection_name=settings.QDRANT_COLLECTION_NAME,
+                api_key=settings.QDRANT_API_KEY,
+            )
+            success = await vector_store.initialize()
+        case _:
+            raise ValueError(f"Unsupported vector store provider: {settings.VECTOR_STORE_PROVIDER}")
+    
     if success:
         logger.info("Primary vector store initialization successful")
     else:
@@ -847,9 +860,14 @@ async def shutdown(ctx):
         await ctx["database"].engine.dispose()
 
     # Close vector store connections if they exist
-    if "vector_store" in ctx and hasattr(ctx["vector_store"], "engine"):
+    if "vector_store" in ctx:
         logger.info("Closing vector store connections...")
-        await ctx["vector_store"].engine.dispose()
+        if hasattr(ctx["vector_store"], "engine"):
+            # PostgreSQL vector store
+            await ctx["vector_store"].engine.dispose()
+        elif hasattr(ctx["vector_store"], "close"):
+            # Qdrant vector store
+            await ctx["vector_store"].close()
 
     # Close colpali vector store connections if they exist
     if "colpali_vector_store" in ctx and hasattr(ctx["colpali_vector_store"], "engine"):
