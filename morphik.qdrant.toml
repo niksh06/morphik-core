@@ -25,9 +25,7 @@ claude_opus = { model_name = "claude-3-opus-20240229" }
 claude_sonnet = { model_name = "claude-3-7-sonnet-latest" }
 
 # Google Gemini models
-gemini_flash = { model_name = "gemini/gemini-2.5-flash-preview-05-20" } # gemini-2.5-flash-preview-05-20
-# gemini_flash = { model_name = "gemini/gemini-2.5-pro-preview-06-05" } # { model_name = "claude-4-sonnet-20250514"} # { model_name = "gpt-4.1" } # { model_name = "gemini/gemini-2.5-pro-preview-06-05" } # {model_name = "o3-2025-04-16"} #  { model_name = "claude-3-7-sonnet-latest"} #  { model_name = "gemini/gemini-2.5-flash-preview-05-20" } # gemini-2.5-flash-preview-05-20
-# gemini_flash = { model_name = "groq/meta-llama/llama-4-maverick-17b-128e-instruct"}
+gemini_flash = { model_name = "gemini/gemini-2.5-flash-preview-05-20" }
 
 # Ollama models (modify api_base based on your deployment)
 # - Local Ollama: "http://localhost:11434" (default)
@@ -101,11 +99,10 @@ storage_path = "./storage"
 # bucket_name = "morphik-s3-storage"
 
 [vector_store]
-provider = "pgvector"
-# provider = "qdrant"
-# host = "localhost"
-# port = 6333
-# collection_name = "morphik_embeddings"
+provider = "qdrant"
+host = "localhost"  # Use "qdrant" if running in Docker
+port = 6333
+collection_name = "morphik_embeddings"
 
 [rules]
 model = "ollama_qwen_vision"
@@ -120,7 +117,7 @@ morphik_embedding_api_domain = "http://localhost:6000"  # endpoint for multivect
 colpali_mode = "local" # "off", "local", or "api"
 
 [pdf_viewer]
-frontend_url = "http://localhost:3000/api/pdf" # "https://morphik.ai/api/pdf" # "http://localhost:3000/api/pdf" # "https://morphik.ai/api/pdf"
+frontend_url = "http://localhost:3000/api/pdf"
 
 [workflows]
 model = "gemini_flash"  # Model for workflow extraction tasks
@@ -128,10 +125,6 @@ model = "gemini_flash"  # Model for workflow extraction tasks
 [graph]
 model = "ollama_qwen_vision"
 enable_entity_resolution = true
-
-# [graph]
-# mode="api"
-# base_url="https://graph-api.morphik.ai"
 
 [telemetry]
 enabled = true

@@ -35,6 +35,7 @@ dependencies = [
     "pdf2image>=1.17.0",
     "pgvector>=0.4.1",
     "pre-commit>=4.2.0",
+    "qdrant-client>=1.11.0",
     "psycopg>=3.2.9",
     "psycopg-binary>=3.2.9",
     "psycopg-pool>=3.2.6",

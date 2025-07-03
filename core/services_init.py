@@ -31,6 +31,7 @@ from core.storage.local_storage import LocalStorage
 from core.storage.s3_storage import S3Storage
 from core.vector_store.multi_vector_store import MultiVectorStore
 from core.vector_store.pgvector_store import PGVectorStore
+from core.vector_store.qdrant_store import QdrantStore
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +52,21 @@ if not settings.POSTGRES_URI:
 database = PostgresDatabase(uri=settings.POSTGRES_URI)
 logger.debug("Created PostgresDatabase singleton")
 
-vector_store = PGVectorStore(uri=settings.POSTGRES_URI)
-logger.debug("Created PGVectorStore singleton")
+# Initialize vector store based on configuration
+match settings.VECTOR_STORE_PROVIDER:
+    case "pgvector":
+        vector_store = PGVectorStore(uri=settings.POSTGRES_URI)
+        logger.debug("Created PGVectorStore singleton")
+    case "qdrant":
+        vector_store = QdrantStore(
+            host=settings.QDRANT_HOST,
+            port=settings.QDRANT_PORT,
+            collection_name=settings.QDRANT_COLLECTION_NAME,
+            api_key=settings.QDRANT_API_KEY,
+        )
+        logger.debug("Created QdrantStore singleton")
+    case _:
+        raise ValueError(f"Unsupported vector store provider: {settings.VECTOR_STORE_PROVIDER}")
 
 # ---------------------------------------------------------------------------
 # Object storage
@@ -122,21 +136,33 @@ cache_factory = LlamaCacheFactory(Path(settings.STORAGE_PATH))
 # ---------------------------------------------------------------------------
 # ColPali multi-vector support
 # ---------------------------------------------------------------------------
+# Note: ColPali currently requires PostgreSQL with pgvector. 
+# MultiVectorStore does not yet support Qdrant.
 
 match settings.COLPALI_MODE:
     case "off":
         colpali_embedding_model = None
         colpali_vector_store = None
     case "local":
-        colpali_embedding_model = ColpaliEmbeddingModel()
-        colpali_vector_store = MultiVectorStore(
-            uri=settings.POSTGRES_URI, enable_external_storage=True, auto_initialize=False
-        )
+        if settings.VECTOR_STORE_PROVIDER != "pgvector":
+            logger.warning("ColPali requires PostgreSQL. Disabling ColPali since vector store is not pgvector.")
+            colpali_embedding_model = None
+            colpali_vector_store = None
+        else:
+            colpali_embedding_model = ColpaliEmbeddingModel()
+            colpali_vector_store = MultiVectorStore(
+                uri=settings.POSTGRES_URI, enable_external_storage=True, auto_initialize=False
+            )
     case "api":
-        colpali_embedding_model = ColpaliApiEmbeddingModel()
-        colpali_vector_store = MultiVectorStore(
-            uri=settings.POSTGRES_URI, enable_external_storage=True, auto_initialize=False
-        )
+        if settings.VECTOR_STORE_PROVIDER != "pgvector":
+            logger.warning("ColPali requires PostgreSQL. Disabling ColPali since vector store is not pgvector.")
+            colpali_embedding_model = None
+            colpali_vector_store = None
+        else:
+            colpali_embedding_model = ColpaliApiEmbeddingModel()
+            colpali_vector_store = MultiVectorStore(
+                uri=settings.POSTGRES_URI, enable_external_storage=True, auto_initialize=False
+            )
     case _:
         raise ValueError(f"Unsupported COLPALI_MODE: {settings.COLPALI_MODE}")
 

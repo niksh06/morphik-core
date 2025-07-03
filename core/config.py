@@ -108,8 +108,14 @@ class Settings(BaseSettings):
     S3_BUCKET: Optional[str] = None
 
     # Vector store configuration
-    VECTOR_STORE_PROVIDER: Literal["pgvector"]
+    VECTOR_STORE_PROVIDER: Literal["pgvector", "qdrant"]
     VECTOR_STORE_DATABASE_NAME: Optional[str] = None
+    
+    # Qdrant configuration
+    QDRANT_HOST: str = "localhost"
+    QDRANT_PORT: int = 6333
+    QDRANT_COLLECTION_NAME: str = "morphik_embeddings"
+    QDRANT_API_KEY: Optional[str] = None
 
     # Colpali configuration
     ENABLE_COLPALI: bool
@@ -295,13 +301,23 @@ def get_settings() -> Settings:
 
     # load vector store config
     vector_store_config = {"VECTOR_STORE_PROVIDER": config["vector_store"]["provider"]}
-    if vector_store_config["VECTOR_STORE_PROVIDER"] != "pgvector":
+    
+    if vector_store_config["VECTOR_STORE_PROVIDER"] == "pgvector":
+        if "POSTGRES_URI" not in os.environ:
+            msg = em.format(missing_value="POSTGRES_URI", field="vector_store.provider", value="pgvector")
+            raise ValueError(msg)
+    elif vector_store_config["VECTOR_STORE_PROVIDER"] == "qdrant":
+        # Load Qdrant configuration
+        qdrant_config = {
+            "QDRANT_HOST": config["vector_store"].get("host", "localhost"),
+            "QDRANT_PORT": config["vector_store"].get("port", 6333),
+            "QDRANT_COLLECTION_NAME": config["vector_store"].get("collection_name", "morphik_embeddings"),
+            "QDRANT_API_KEY": os.environ.get("QDRANT_API_KEY", None),
+        }
+        vector_store_config.update(qdrant_config)
+    else:
         prov = vector_store_config["VECTOR_STORE_PROVIDER"]
         raise ValueError(f"Unknown vector store provider selected: '{prov}'")
-
-    if "POSTGRES_URI" not in os.environ:
-        msg = em.format(missing_value="POSTGRES_URI", field="vector_store.provider", value="pgvector")
-        raise ValueError(msg)
 
     # load rules config
     rules_config = {
