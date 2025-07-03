@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: Optional[str] = None
     ASSEMBLYAI_API_KEY: Optional[str] = None
     GEMINI_API_KEY: Optional[str] = None
+    MISTRAL_API_KEY: Optional[str] = None
 
     # API configuration
     HOST: str
